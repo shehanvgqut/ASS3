@@ -1,0 +1,97 @@
+import React, { useState } from "react";
+import { StyleSheet, Text, View } from "react-native";
+import { Button, TextInput } from "react-native-paper";
+
+import { register } from "../services/authService";
+
+export default function RegisterScreen({ navigation }) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleRegister = async () => {
+    if (!name.trim() || !email.trim() || !password) {
+      setError("Please complete all fields.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError("");
+
+      await register({
+        name: name.trim(),
+        email: email.trim(),
+        password,
+      });
+
+      navigation.navigate("Login");
+    } catch (err) {
+      const message =
+        err.response?.data?.message || "Registration failed. Please try again.";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Create Account</Text>
+
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
+      <TextInput
+        label="Name"
+        value={name}
+        onChangeText={setName}
+        style={styles.input}
+      />
+
+      <TextInput
+        label="Email"
+        value={email}
+        onChangeText={setEmail}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        style={styles.input}
+      />
+
+      <TextInput
+        label="Password"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        style={styles.input}
+      />
+
+      <Button mode="contained" onPress={handleRegister} loading={loading}>
+        Register
+      </Button>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    padding: 20,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "bold",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  input: {
+    marginBottom: 12,
+  },
+  error: {
+    color: "#b00020",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+});

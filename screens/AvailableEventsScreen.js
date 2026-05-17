@@ -76,7 +76,9 @@ export default function AvailableEventsScreen({ navigation }) {
             <Card.Actions>
               <Button
                 onPress={() =>
-                  navigation.navigate("Event Details", { eventId: item._id })
+                  navigation.navigate("EventDetails", {
+                    eventId: item._id || item.id,
+                  })
                 }
               >
                 View Details

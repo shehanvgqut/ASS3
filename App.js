@@ -5,10 +5,10 @@ import { Provider as PaperProvider } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 
-import AppNavigator from "./src/navigation/AppNavigator";
-import AuthNavigator from "./src/navigation/AuthNavigator";
-import { AuthProvider, AuthContext } from "./src/context/AuthContext";
-import { NetworkProvider } from "./src/context/NetworkContext";
+import AppNavigator from "./navigation/AppNavigator";
+import AuthNavigator from "./navigation/AuthNavigator";
+import { AuthProvider, AuthContext } from "./context/AuthContext";
+import { NetworkProvider } from "./context/NetworkContext";
 
 function RootNavigator() {
   const { isLoggedIn, authLoading } = useContext(AuthContext);
@@ -28,8 +28,8 @@ function RootNavigator() {
     );
   }
 
-// return isLoggedIn ? <AppNavigator /> : <AuthNavigator />;}
-return <AuthNavigator />;
+  return isLoggedIn ? <AppNavigator /> : <AuthNavigator />;
+}
 
 export default function App() {
   return (
