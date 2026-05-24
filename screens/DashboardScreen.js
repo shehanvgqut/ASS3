@@ -81,7 +81,6 @@ export default function DashboardScreen({ navigation }) {
 
       <View style={styles.hero}>
         <Text style={styles.eyebrow}>This week</Text>
-        <Text style={styles.title}>Dashboard</Text>
         <Text style={styles.subtitle}>
           Keep track of your joined events.
         </Text>
@@ -140,11 +139,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 6,
     textTransform: "uppercase",
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: "bold",
-    marginBottom: 6,
   },
   subtitle: {
     color: "#666",

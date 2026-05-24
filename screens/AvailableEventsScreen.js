@@ -119,8 +119,6 @@ export default function AvailableEventsScreen({ navigation }) {
     <View style={styles.container}>
       <OfflineBanner isOnline={isOnline} />
 
-      <Text style={styles.title}>Available Events</Text>
-
       {loading && <LoadingView message="Loading events..." />}
 
       {error ? <ErrorMessage message={error} onRetry={loadEvents} /> : null}
@@ -171,11 +169,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 12,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 12,
   },
   list: {
     paddingBottom: 24,

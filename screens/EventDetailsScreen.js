@@ -13,7 +13,10 @@ import ErrorMessage from "../components/ErrorMessage";
 import OfflineBanner from "../components/OfflineBanner";
 import ShareEventButton from "../components/ShareEventButton";
 import { NetworkContext } from "../context/NetworkContext";
-import { showRegistrationNotification } from "../utils/notifications";
+import {
+  showRegistrationCancelledNotification,
+  showRegistrationNotification,
+} from "../services/notificationService";
 
 export default function EventDetailsScreen({ route }) {
   const { eventId } = route.params;
@@ -104,6 +107,10 @@ export default function EventDetailsScreen({ route }) {
       await cancelCurrentUserRegistration(selectedEventId);
       setIsRegistered(false);
       setSuccess("You have left this event.");
+
+      if (event?.title) {
+        await showRegistrationCancelledNotification(event.title);
+      }
     } catch (err) {
       const message =
         err.response?.data?.message ||
