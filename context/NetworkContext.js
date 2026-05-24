@@ -10,7 +10,10 @@ export function NetworkProvider({ children }) {
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
-      setIsOnline(Boolean(state.isConnected));
+      const hasConnection = Boolean(state.isConnected);
+      const hasInternet = state.isInternetReachable !== false;
+
+      setIsOnline(hasConnection && hasInternet);
     });
 
     return () => unsubscribe();

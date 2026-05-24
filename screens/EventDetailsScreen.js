@@ -3,12 +3,16 @@ import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { Button, Card } from "react-native-paper";
 
 import { getEventById } from "../services/eventService";
-import { registerForEvent } from "../services/registrationService";
+import {
+  cancelCurrentUserRegistration,
+  getCurrentUserRegistrationForEvent,
+  registerForEvent,
+} from "../services/registrationService";
 import LoadingView from "../components/LoadingView";
 import ErrorMessage from "../components/ErrorMessage";
 import OfflineBanner from "../components/OfflineBanner";
+import ShareEventButton from "../components/ShareEventButton";
 import { NetworkContext } from "../context/NetworkContext";
-import { shareEvent } from "../utils/shareEvent";
 import { showRegistrationNotification } from "../utils/notifications";
 
 export default function EventDetailsScreen({ route }) {
@@ -20,15 +24,34 @@ export default function EventDetailsScreen({ route }) {
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [isRegistered, setIsRegistered] = useState(false);
+
+  const selectedEventId = event?._id || event?.id || eventId;
+  const eventStatus = event?.status?.toLowerCase();
+  const isRegistrationClosed = ["cancelled", "completed"].includes(eventStatus);
+
+  const loadRegistrationStatus = async () => {
+    try {
+      await getCurrentUserRegistrationForEvent(eventId);
+      setIsRegistered(true);
+    } catch (err) {
+      setIsRegistered(false);
+    }
+  };
 
   const loadEvent = async () => {
     try {
       setLoading(true);
       setError("");
-      const data = await getEventById(eventId);
-      setEvent(data);
+      setSuccess("");
+
+      const eventData = await getEventById(eventId);
+      setEvent(eventData);
+      await loadRegistrationStatus();
     } catch (err) {
-      setError("Unable to load event details.");
+      const message =
+        err.response?.data?.message || "Unable to load event details.";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -40,12 +63,18 @@ export default function EventDetailsScreen({ route }) {
       return;
     }
 
+    if (isRegistrationClosed) {
+      setError("Registrations are closed for this event.");
+      return;
+    }
+
     try {
       setActionLoading(true);
       setError("");
       setSuccess("");
 
-      await registerForEvent(eventId);
+      await registerForEvent(selectedEventId);
+      setIsRegistered(true);
       setSuccess("You have successfully registered for this event.");
 
       if (event?.title) {
@@ -55,6 +84,30 @@ export default function EventDetailsScreen({ route }) {
       const message =
         err.response?.data?.message ||
         "Registration failed. Please try again.";
+      setError(message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleLeave = async () => {
+    if (!isOnline) {
+      setError("You are offline. Please reconnect before leaving this event.");
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      setError("");
+      setSuccess("");
+
+      await cancelCurrentUserRegistration(selectedEventId);
+      setIsRegistered(false);
+      setSuccess("You have left this event.");
+    } catch (err) {
+      const message =
+        err.response?.data?.message ||
+        "Unable to leave this event. Please try again.";
       setError(message);
     } finally {
       setActionLoading(false);
@@ -73,7 +126,9 @@ export default function EventDetailsScreen({ route }) {
     <ScrollView style={styles.container}>
       <OfflineBanner isOnline={isOnline} />
 
-      {error ? <ErrorMessage message={error} onRetry={loadEvent} /> : null}
+      {error ? (
+        <ErrorMessage message={error} onRetry={!event ? loadEvent : undefined} />
+      ) : null}
 
       {success ? <Text style={styles.success}>{success}</Text> : null}
 
@@ -89,21 +144,39 @@ export default function EventDetailsScreen({ route }) {
 
             <Text style={styles.label}>Category</Text>
             <Text>{event.category || "General"}</Text>
+
+            {event.status ? (
+              <>
+                <Text style={styles.label}>Status</Text>
+                <Text style={isRegistrationClosed ? styles.closedStatus : null}>
+                  {event.status}
+                </Text>
+              </>
+            ) : null}
           </Card.Content>
 
           <Card.Actions>
             <Button
-              mode="contained"
-              onPress={handleRegister}
+              mode={isRegistered ? "outlined" : "contained"}
+              onPress={isRegistered ? handleLeave : handleRegister}
               loading={actionLoading}
-              disabled={actionLoading || !isOnline}
+              disabled={
+                actionLoading ||
+                !isOnline ||
+                (!isRegistered && isRegistrationClosed)
+              }
             >
-              Register
+              {isRegistered
+                ? "Leave Event"
+                : isRegistrationClosed
+                ? "Closed"
+                : "Register"}
             </Button>
 
-            <Button mode="outlined" onPress={() => shareEvent(event)}>
-              Share
-            </Button>
+            <ShareEventButton
+              event={event}
+              shareContext={isRegistered ? "joined" : "event"}
+            />
           </Card.Actions>
         </Card>
       )}
@@ -130,5 +203,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     margin: 12,
     textAlign: "center",
+  },
+  closedStatus: {
+    color: "#b00020",
+    fontWeight: "bold",
   },
 });

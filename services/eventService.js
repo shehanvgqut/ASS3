@@ -12,10 +12,33 @@ export const getEventById = async (id) => {
   return response.data;
 };
 
-export const getEvents = async ({ search = "", page = 1, limit = 10 }) => {
-  const response = await apiClient.get("/events", {
-    params: { search, page, limit },
-  });
+export const getEvents = async ({
+  search = "",
+  category = "",
+  location = "",
+  status = "",
+  dateFrom = "",
+  dateTo = "",
+  sortBy = "date",
+  sortOrder = "asc",
+  page = 1,
+  limit = 8,
+} = {}) => {
+  const params = {
+    sortBy,
+    sortOrder,
+    page,
+    limit,
+  };
+
+  if (search.trim()) params.search = search.trim();
+  if (category.trim()) params.category = category.trim();
+  if (location.trim()) params.location = location.trim();
+  if (status.trim()) params.status = status.trim();
+  if (dateFrom.trim()) params.dateFrom = dateFrom.trim();
+  if (dateTo.trim()) params.dateTo = dateTo.trim();
+
+  const response = await apiClient.get("/events", { params });
 
   return response.data;
 };

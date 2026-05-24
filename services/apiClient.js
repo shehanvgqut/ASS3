@@ -10,6 +10,8 @@ const apiClient = axios.create({
   timeout: 10000,
 });
 
+const ENABLE_API_LOGS = false;
+
 apiClient.interceptors.request.use(async (config) => {
   const token = await AsyncStorage.getItem("token");
 
@@ -19,5 +21,32 @@ apiClient.interceptors.request.use(async (config) => {
 
   return config;
 });
+
+apiClient.interceptors.response.use(
+  (response) => {
+    if (ENABLE_API_LOGS) {
+      console.log("API response:", {
+        method: response.config.method?.toUpperCase(),
+        url: response.config.url,
+        status: response.status,
+        data: response.data,
+      });
+    }
+
+    return response;
+  },
+  (error) => {
+    if (ENABLE_API_LOGS) {
+      console.log("API error:", {
+        method: error.config?.method?.toUpperCase(),
+        url: error.config?.url,
+        status: error.response?.status,
+        data: error.response?.data || error.message,
+      });
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 export default apiClient;

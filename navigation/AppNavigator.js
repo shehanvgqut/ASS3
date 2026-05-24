@@ -5,9 +5,9 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import DashboardScreen from "../screens/DashboardScreen";
 import AvailableEventsScreen from "../screens/AvailableEventsScreen";
 import EventDetailsScreen from "../screens/EventDetailsScreen";
-import MyEventsScreen from "../screens/MyEventsScreen";
 import WatchlistScreen from "../screens/WatchlistScreen";
 import ProfileScreen from "../screens/ProfileScreen";
+import TabIcon from "../components/TabIcon";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -23,24 +23,6 @@ function EventsStack() {
 
       <Stack.Screen
         name="EventDetails"
-        component={EventDetailsScreen}
-        options={{ title: "Event Details" }}
-      />
-    </Stack.Navigator>
-  );
-}
-
-function MyEventsStack() {
-  return (
-    <Stack.Navigator>
-      <Stack.Screen
-        name="MyEventsList"
-        component={MyEventsScreen}
-        options={{ title: "My Events" }}
-      />
-
-      <Stack.Screen
-        name="MyEventDetails"
         component={EventDetailsScreen}
         options={{ title: "Event Details" }}
       />
@@ -68,18 +50,43 @@ function WatchlistStack() {
 
 export default function AppNavigator() {
   return (
-    <Tab.Navigator>
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarActiveTintColor: "#6f43b7",
+        tabBarInactiveTintColor: "#8a8790",
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: "600",
+          paddingBottom: 4,
+        },
+        tabBarStyle: {
+          borderTopColor: "#e6e0ec",
+          height: 68,
+          paddingTop: 8,
+        },
+        tabBarIcon: ({ color, focused }) => {
+          const tabIconNameByRouteName = {
+            Dashboard: "dashboard",
+            Events: "events",
+            Watchlist: "watchlist",
+            Profile: "profile",
+          };
+
+          return (
+            <TabIcon
+              iconName={tabIconNameByRouteName[route.name]}
+              color={color}
+              focused={focused}
+            />
+          );
+        },
+      })}
+    >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
 
       <Tab.Screen
         name="Events"
         component={EventsStack}
-        options={{ headerShown: false }}
-      />
-
-      <Tab.Screen
-        name="My Events"
-        component={MyEventsStack}
         options={{ headerShown: false }}
       />
 

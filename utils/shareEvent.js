@@ -1,15 +1,11 @@
-import { Share } from "react-native";
+import { buildEventShareMessage } from "./eventShareFormatter";
+import { shareTextContent } from "./shareContent";
 
-export const shareEvent = async (event) => {
-  try {
-    await Share.share({
-      message:
-        `${event.title}\n\n` +
-        `Date: ${event.date}\n` +
-        `Location: ${event.location}\n\n` +
-        `Details: ${event.description}`,
-    });
-  } catch (error) {
-    console.log("Share error:", error);
-  }
+export const shareEvent = async (event, shareContext = "event") => {
+  const message = buildEventShareMessage(event, shareContext);
+
+  await shareTextContent({
+    title: event?.title || "Event",
+    message,
+  });
 };
