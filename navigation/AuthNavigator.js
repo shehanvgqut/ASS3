@@ -6,13 +6,27 @@ import RegisterScreen from "../screens/RegisterScreen";
 
 const Stack = createNativeStackNavigator();
 
+const authHeaderOptions = {
+  headerStyle: {
+    backgroundColor: "#f8f6fb",
+  },
+  headerShadowVisible: false,
+  headerTitleAlign: "left",
+  headerTitleStyle: {
+    color: "#21172f",
+    fontSize: 24,
+    fontWeight: "800",
+  },
+  headerTintColor: "#6f43b7",
+};
+
 export default function AuthNavigator() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator screenOptions={authHeaderOptions}>
       <Stack.Screen
         name="Login"
         component={LoginScreen}
-        options={{ title: "Login" }}
+        options={{ headerShown: false }}
       />
 
       <Stack.Screen

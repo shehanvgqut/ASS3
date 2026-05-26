@@ -12,9 +12,23 @@ import TabIcon from "../components/TabIcon";
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
+const screenHeaderOptions = {
+  headerStyle: {
+    backgroundColor: "#f8f6fb",
+  },
+  headerShadowVisible: false,
+  headerTitleAlign: "left",
+  headerTitleStyle: {
+    color: "#21172f",
+    fontSize: 24,
+    fontWeight: "800",
+  },
+  headerTintColor: "#6f43b7",
+};
+
 function EventsStack() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator screenOptions={screenHeaderOptions}>
       <Stack.Screen
         name="AvailableEvents"
         component={AvailableEventsScreen}
@@ -32,7 +46,7 @@ function EventsStack() {
 
 function WatchlistStack() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator screenOptions={screenHeaderOptions}>
       <Stack.Screen
         name="WatchlistList"
         component={WatchlistScreen}
@@ -52,6 +66,7 @@ export default function AppNavigator() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
+        ...screenHeaderOptions,
         tabBarActiveTintColor: "#6f43b7",
         tabBarInactiveTintColor: "#8a8790",
         tabBarLabelStyle: {

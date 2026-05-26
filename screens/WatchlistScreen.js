@@ -5,7 +5,13 @@ import { useFocusEffect } from "@react-navigation/native";
 
 import ErrorMessage from "../components/ErrorMessage";
 import LoadingView from "../components/LoadingView";
-import { getWatchlist, removeFromWatchlist } from "../services/watchlistService";
+import {
+  getWatchlist,
+  normalizeWatchlistItems,
+  removeFromWatchlist,
+} from "../services/watchlistService";
+import { formatDisplayDate, formatDisplayTime } from "../utils/dateFormatters";
+import { getApiErrorMessage } from "../utils/apiErrorMessage";
 
 const getEvent = (item) => item.event || item;
 const getEventId = (item) => getEvent(item)._id || getEvent(item).id || item._id || item.id;
@@ -20,9 +26,9 @@ export default function WatchlistScreen({ navigation }) {
       setLoading(true);
       setError("");
       const data = await getWatchlist();
-      setEvents(Array.isArray(data) ? data : data.watchlist || data.events || []);
+      setEvents(normalizeWatchlistItems(data));
     } catch (err) {
-      setError("Unable to load your watchlist.");
+      setError(getApiErrorMessage(err, "Unable to load your watchlist."));
     } finally {
       setLoading(false);
     }
@@ -33,7 +39,7 @@ export default function WatchlistScreen({ navigation }) {
       await removeFromWatchlist(eventId);
       await loadEvents();
     } catch (err) {
-      setError("Unable to remove this event.");
+      setError(getApiErrorMessage(err, "Unable to remove this event."));
     }
   };
 
@@ -66,7 +72,12 @@ export default function WatchlistScreen({ navigation }) {
             <Card style={styles.card}>
               <Card.Title title={event.title} subtitle={event.location} />
               <Card.Content>
-                <Text>{event.date}</Text>
+                <Text style={styles.dateTimeText}>
+                  Date: {formatDisplayDate(event.date)}
+                </Text>
+                <Text style={styles.dateTimeText}>
+                  Time: {formatDisplayTime(event.date)}
+                </Text>
               </Card.Content>
               <Card.Actions>
                 <Button
@@ -93,6 +104,10 @@ const styles = StyleSheet.create({
   },
   card: {
     marginBottom: 12,
+  },
+  dateTimeText: {
+    fontWeight: "600",
+    marginTop: 4,
   },
   empty: {
     marginTop: 30,

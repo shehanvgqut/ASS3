@@ -3,6 +3,8 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { BACKEND_API_ERROR_MESSAGE } from "../utils/apiErrorMessage";
+
 const API_BASE_URL = "https://jacaranda04.ifn666.com/assignment2/api";
 
 const apiClient = axios.create({
@@ -36,6 +38,16 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
+    const backendUnavailable =
+      !error.response ||
+      error.response?.status >= 500 ||
+      error.code === "ECONNABORTED" ||
+      error.message === "Network Error";
+
+    if (backendUnavailable) {
+      error.userMessage = BACKEND_API_ERROR_MESSAGE;
+    }
+
     if (ENABLE_API_LOGS) {
       console.log("API error:", {
         method: error.config?.method?.toUpperCase(),

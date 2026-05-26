@@ -102,6 +102,11 @@ export const scheduleLocalNotification = async ({
   data = {},
   trigger = null,
 }) => {
+  if (!title?.trim() || !body?.trim()) {
+    console.log("Local notification skipped because title or body is empty.");
+    return null;
+  }
+
   const permissionGranted = await requestNotificationPermission();
 
   if (!permissionGranted) {
@@ -110,21 +115,19 @@ export const scheduleLocalNotification = async ({
   }
 
   const Notifications = await initializeLocalNotifications();
-  const notificationTrigger =
-    trigger ||
-    (Platform.OS === "android"
-      ? { channelId: EVENT_NOTIFICATION_CHANNEL_ID }
-      : null);
 
   const notificationId = await Notifications.scheduleNotificationAsync({
     content: {
       title,
       body,
+      ...(Platform.OS === "android"
+        ? { channelId: EVENT_NOTIFICATION_CHANNEL_ID }
+        : {}),
       data,
       sound: "default",
       priority: Notifications.AndroidNotificationPriority.HIGH,
     },
-    trigger: notificationTrigger,
+    trigger,
   });
 
   console.log("Local notification scheduled:", notificationId);

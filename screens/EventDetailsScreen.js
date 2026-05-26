@@ -8,6 +8,11 @@ import {
   getCurrentUserRegistrationForEvent,
   registerForEvent,
 } from "../services/registrationService";
+import {
+  addToWatchlist,
+  getCurrentUserWatchlistForEvent,
+  removeFromWatchlist,
+} from "../services/watchlistService";
 import LoadingView from "../components/LoadingView";
 import ErrorMessage from "../components/ErrorMessage";
 import OfflineBanner from "../components/OfflineBanner";
@@ -17,6 +22,8 @@ import {
   showRegistrationCancelledNotification,
   showRegistrationNotification,
 } from "../services/notificationService";
+import { formatDisplayDate, formatDisplayTime } from "../utils/dateFormatters";
+import { getApiErrorMessage } from "../utils/apiErrorMessage";
 
 export default function EventDetailsScreen({ route }) {
   const { eventId } = route.params;
@@ -28,6 +35,7 @@ export default function EventDetailsScreen({ route }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isRegistered, setIsRegistered] = useState(false);
+  const [isWatchlisted, setIsWatchlisted] = useState(false);
 
   const selectedEventId = event?._id || event?.id || eventId;
   const eventStatus = event?.status?.toLowerCase();
@@ -39,6 +47,21 @@ export default function EventDetailsScreen({ route }) {
       setIsRegistered(true);
     } catch (err) {
       setIsRegistered(false);
+      if (err.userMessage) {
+        setError(err.userMessage);
+      }
+    }
+  };
+
+  const loadWatchlistStatus = async () => {
+    try {
+      await getCurrentUserWatchlistForEvent(eventId);
+      setIsWatchlisted(true);
+    } catch (err) {
+      setIsWatchlisted(false);
+      if (err.userMessage) {
+        setError(err.userMessage);
+      }
     }
   };
 
@@ -51,12 +74,65 @@ export default function EventDetailsScreen({ route }) {
       const eventData = await getEventById(eventId);
       setEvent(eventData);
       await loadRegistrationStatus();
+      await loadWatchlistStatus();
     } catch (err) {
-      const message =
-        err.response?.data?.message || "Unable to load event details.";
+      const message = getApiErrorMessage(
+        err,
+        "Unable to load event details."
+      );
       setError(message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddToWatchlist = async () => {
+    if (!isOnline) {
+      setError("You are offline. Please reconnect before saving this event.");
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      setError("");
+      setSuccess("");
+
+      await addToWatchlist(selectedEventId);
+      setIsWatchlisted(true);
+      setSuccess("Event added to your watchlist.");
+    } catch (err) {
+      const message = getApiErrorMessage(
+        err,
+        "Unable to add this event to your watchlist."
+      );
+      setError(message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRemoveFromWatchlist = async () => {
+    if (!isOnline) {
+      setError("You are offline. Please reconnect before removing this event.");
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      setError("");
+      setSuccess("");
+
+      await removeFromWatchlist(selectedEventId);
+      setIsWatchlisted(false);
+      setSuccess("Event removed from your watchlist.");
+    } catch (err) {
+      const message = getApiErrorMessage(
+        err,
+        "Unable to remove this event from your watchlist."
+      );
+      setError(message);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -84,9 +160,10 @@ export default function EventDetailsScreen({ route }) {
         await showRegistrationNotification(event.title);
       }
     } catch (err) {
-      const message =
-        err.response?.data?.message ||
-        "Registration failed. Please try again.";
+      const message = getApiErrorMessage(
+        err,
+        "Registration failed. Please try again."
+      );
       setError(message);
     } finally {
       setActionLoading(false);
@@ -112,9 +189,10 @@ export default function EventDetailsScreen({ route }) {
         await showRegistrationCancelledNotification(event.title);
       }
     } catch (err) {
-      const message =
-        err.response?.data?.message ||
-        "Unable to leave this event. Please try again.";
+      const message = getApiErrorMessage(
+        err,
+        "Unable to leave this event. Please try again."
+      );
       setError(message);
     } finally {
       setActionLoading(false);
@@ -147,7 +225,10 @@ export default function EventDetailsScreen({ route }) {
             <Text>{event.description}</Text>
 
             <Text style={styles.label}>Date</Text>
-            <Text>{event.date}</Text>
+            <Text>{formatDisplayDate(event.date)}</Text>
+
+            <Text style={styles.label}>Time</Text>
+            <Text>{formatDisplayTime(event.date)}</Text>
 
             <Text style={styles.label}>Category</Text>
             <Text>{event.category || "General"}</Text>
@@ -162,7 +243,7 @@ export default function EventDetailsScreen({ route }) {
             ) : null}
           </Card.Content>
 
-          <Card.Actions>
+          <Card.Actions style={styles.actions}>
             <Button
               mode={isRegistered ? "outlined" : "contained"}
               onPress={isRegistered ? handleLeave : handleRegister}
@@ -184,6 +265,19 @@ export default function EventDetailsScreen({ route }) {
               event={event}
               shareContext={isRegistered ? "joined" : "event"}
             />
+
+            <Button
+              mode={isWatchlisted ? "outlined" : "contained-tonal"}
+              onPress={
+                isWatchlisted
+                  ? handleRemoveFromWatchlist
+                  : handleAddToWatchlist
+              }
+              loading={actionLoading}
+              disabled={actionLoading || !isOnline}
+            >
+              {isWatchlisted ? "Remove Saved" : "Save Event"}
+            </Button>
           </Card.Actions>
         </Card>
       )}
@@ -214,5 +308,9 @@ const styles = StyleSheet.create({
   closedStatus: {
     color: "#b00020",
     fontWeight: "bold",
+  },
+  actions: {
+    flexWrap: "wrap",
+    gap: 8,
   },
 });

@@ -3,7 +3,11 @@ import { FlatList, StyleSheet, Text, View } from "react-native";
 import { Button, Card } from "react-native-paper";
 
 import ShareEventButton from "./ShareEventButton";
-import { formatDisplayDateTime, formatShortDay } from "../utils/dateFormatters";
+import {
+  formatDisplayDate,
+  formatDisplayTime,
+  formatShortDay,
+} from "../utils/dateFormatters";
 
 const formatCategory = (category) =>
   category ? category.charAt(0).toUpperCase() + category.slice(1) : "Event";
@@ -46,7 +50,10 @@ export default function DashboardEventSection({
                     <Text style={styles.meta}>{item.location}</Text>
                   ) : null}
                   <Text style={styles.date}>
-                    {formatDisplayDateTime(item.date)}
+                    Date: {formatDisplayDate(item.date)}
+                  </Text>
+                  <Text style={styles.time}>
+                    Time: {formatDisplayTime(item.date)}
                   </Text>
                   <Text style={styles.category}>
                     {formatCategory(item.category)}
@@ -151,6 +158,11 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   date: {
+    color: "#222",
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  time: {
     color: "#222",
     fontWeight: "bold",
     marginBottom: 8,

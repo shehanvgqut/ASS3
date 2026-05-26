@@ -8,6 +8,7 @@ import { logout } from "../services/authService";
 import { getMyProfile } from "../services/userService";
 import ErrorMessage from "../components/ErrorMessage";
 import LoadingView from "../components/LoadingView";
+import { getApiErrorMessage } from "../utils/apiErrorMessage";
 
 const formatDate = (date) => {
   if (!date) return "Not available";
@@ -39,8 +40,7 @@ export default function ProfileScreen() {
       const data = await getMyProfile();
       setProfile(data.user || data);
     } catch (err) {
-      const message =
-        err.response?.data?.message || "Unable to load your profile.";
+      const message = getApiErrorMessage(err, "Unable to load your profile.");
       setError(message);
     } finally {
       setLoading(false);

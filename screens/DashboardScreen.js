@@ -8,6 +8,7 @@ import LoadingView from "../components/LoadingView";
 import OfflineBanner from "../components/OfflineBanner";
 import { NetworkContext } from "../context/NetworkContext";
 import { getCurrentUserJoinedEvents } from "../services/registrationService";
+import { getApiErrorMessage } from "../utils/apiErrorMessage";
 
 const filterEventsOccurringThisWeek = (events) => {
   const now = new Date();
@@ -52,7 +53,7 @@ export default function DashboardScreen({ navigation }) {
       setThisWeekEvents(filterEventsOccurringThisWeek(joinedEvents));
     } catch (err) {
       console.log("Dashboard load error:", err.response?.data || err.message);
-      setError("Unable to load your dashboard.");
+      setError(getApiErrorMessage(err, "Unable to load your dashboard."));
     } finally {
       setLoading(false);
     }

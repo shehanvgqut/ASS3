@@ -1,4 +1,10 @@
-import React, { useCallback, useContext, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { View, Text, FlatList, StyleSheet } from "react-native";
 import { Button, Card } from "react-native-paper";
 import { useFocusEffect } from "@react-navigation/native";
@@ -7,8 +13,11 @@ import { getEvents } from "../services/eventService";
 import LoadingView from "../components/LoadingView";
 import ErrorMessage from "../components/ErrorMessage";
 import OfflineBanner from "../components/OfflineBanner";
+import EventSearchBar from "../components/EventSearchBar";
 import { getData, saveData } from "../utils/storage";
 import { NetworkContext } from "../context/NetworkContext";
+import { formatDisplayDate, formatDisplayTime } from "../utils/dateFormatters";
+import { getApiErrorMessage } from "../utils/apiErrorMessage";
 
 const PAGE_SIZE = 8;
 
@@ -20,6 +29,8 @@ export default function AvailableEventsScreen({ navigation }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
   const [hasNextPage, setHasNextPage] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
 
   const eventsRef = useRef([]);
   const loadingRef = useRef(false);
@@ -27,7 +38,17 @@ export default function AvailableEventsScreen({ navigation }) {
   const hasNextPageRef = useRef(false);
   const pageRef = useRef(1);
 
+  useEffect(() => {
+    const searchTimer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery.trim());
+    }, 350);
+
+    return () => clearTimeout(searchTimer);
+  }, [searchQuery]);
+
   const loadEvents = useCallback(async ({ pageToLoad = 1, append = false } = {}) => {
+    const search = debouncedSearchQuery;
+
     if (
       append &&
       (loadingMoreRef.current || loadingRef.current || !hasNextPageRef.current)
@@ -47,6 +68,7 @@ export default function AvailableEventsScreen({ navigation }) {
       setError("");
 
       const data = await getEvents({
+        search,
         page: pageToLoad,
         limit: PAGE_SIZE,
       });
@@ -75,24 +97,56 @@ export default function AvailableEventsScreen({ navigation }) {
 
       setEvents(mergedEvents);
       setHasNextPage(hasNextPageRef.current);
-      await saveData("cachedEvents", mergedEvents);
+      if (!search) {
+        await saveData("cachedEvents", mergedEvents);
+      }
     } catch (err) {
       if (append) {
-        setError("Unable to load more events. Please try again.");
+        setError(
+          getApiErrorMessage(err, "Unable to load more events. Please try again.")
+        );
         return;
       }
 
       const cached = await getData("cachedEvents");
       if (cached) {
-        eventsRef.current = cached;
+        const cachedEvents = search
+          ? cached.filter((event) => {
+              const searchableText = [
+                event.title,
+                event.location,
+                event.description,
+                event.category,
+              ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
+
+              return searchableText.includes(search.toLowerCase());
+            })
+          : cached;
+
+        eventsRef.current = cachedEvents;
         pageRef.current = 1;
         hasNextPageRef.current = false;
 
-        setEvents(cached);
+        setEvents(cachedEvents);
         setHasNextPage(hasNextPageRef.current);
-        setError("Unable to connect to the server. Showing saved events.");
+        setError(
+          getApiErrorMessage(
+            err,
+            search
+              ? "Unable to connect to the server. Searching saved events."
+              : "Unable to connect to the server. Showing saved events."
+          )
+        );
       } else {
-        setError("Unable to load events. Please check your connection.");
+        setError(
+          getApiErrorMessage(
+            err,
+            "Unable to load events. Please check your connection."
+          )
+        );
       }
     } finally {
       loadingRef.current = false;
@@ -100,7 +154,7 @@ export default function AvailableEventsScreen({ navigation }) {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, []);
+  }, [debouncedSearchQuery]);
 
   const loadMoreEvents = () => {
     loadEvents({
@@ -119,12 +173,22 @@ export default function AvailableEventsScreen({ navigation }) {
     <View style={styles.container}>
       <OfflineBanner isOnline={isOnline} />
 
+      <EventSearchBar
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        onClear={() => setSearchQuery("")}
+      />
+
       {loading && <LoadingView message="Loading events..." />}
 
       {error ? <ErrorMessage message={error} onRetry={loadEvents} /> : null}
 
       {!loading && events.length === 0 && !error ? (
-        <Text style={styles.emptyText}>No available events found.</Text>
+        <Text style={styles.emptyText}>
+          {debouncedSearchQuery
+            ? "No events match your search."
+            : "No available events found."}
+        </Text>
       ) : null}
 
       <FlatList
@@ -145,7 +209,18 @@ export default function AvailableEventsScreen({ navigation }) {
             <Card.Title title={item.title} subtitle={item.location} />
             <Card.Content>
               <Text>{item.description}</Text>
-              <Text style={styles.date}>{item.date}</Text>
+              <View style={styles.dateTimeRow}>
+                <Text style={styles.dateTimeLabel}>Date</Text>
+                <Text style={styles.dateTimeValue}>
+                  {formatDisplayDate(item.date)}
+                </Text>
+              </View>
+              <View style={styles.dateTimeRow}>
+                <Text style={styles.dateTimeLabel}>Time</Text>
+                <Text style={styles.dateTimeValue}>
+                  {formatDisplayTime(item.date)}
+                </Text>
+              </View>
             </Card.Content>
             <Card.Actions>
               <Button
@@ -176,8 +251,16 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: 12,
   },
-  date: {
+  dateTimeRow: {
+    flexDirection: "row",
     marginTop: 8,
+  },
+  dateTimeLabel: {
+    color: "#6e6578",
+    fontWeight: "600",
+    width: 48,
+  },
+  dateTimeValue: {
     fontWeight: "bold",
   },
   emptyText: {

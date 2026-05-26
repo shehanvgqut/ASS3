@@ -20,6 +20,35 @@ export const formatDisplayDateTime = (dateValue) => {
   }).format(parsedDate);
 };
 
+export const formatDisplayDate = (dateValue) => {
+  const parsedDate = parseDateSafely(dateValue);
+
+  if (!parsedDate) {
+    return "Date unavailable";
+  }
+
+  return new Intl.DateTimeFormat("en-AU", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "UTC",
+    year: "numeric",
+  }).format(parsedDate);
+};
+
+export const formatDisplayTime = (dateValue) => {
+  const parsedDate = parseDateSafely(dateValue);
+
+  if (!parsedDate) {
+    return "Time unavailable";
+  }
+
+  return new Intl.DateTimeFormat("en-AU", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "UTC",
+  }).format(parsedDate);
+};
+
 export const formatShortDay = (dateValue) => {
   const parsedDate = parseDateSafely(dateValue);
 

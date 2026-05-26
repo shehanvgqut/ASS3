@@ -9,6 +9,8 @@ import {
   cancelRegistration,
   getMyRegistrations,
 } from "../services/registrationService";
+import { formatDisplayDate, formatDisplayTime } from "../utils/dateFormatters";
+import { getApiErrorMessage } from "../utils/apiErrorMessage";
 
 const getEvent = (item) => item.event || item;
 const getEventId = (item) => getEvent(item)._id || getEvent(item).id || item._id || item.id;
@@ -25,7 +27,7 @@ export default function MyEventsScreen({ navigation }) {
       const data = await getMyRegistrations();
       setEvents(Array.isArray(data) ? data : data.registrations || data.events || []);
     } catch (err) {
-      setError("Unable to load your events.");
+      setError(getApiErrorMessage(err, "Unable to load your events."));
     } finally {
       setLoading(false);
     }
@@ -36,7 +38,7 @@ export default function MyEventsScreen({ navigation }) {
       await cancelRegistration(eventId);
       await loadEvents();
     } catch (err) {
-      setError("Unable to cancel this registration.");
+      setError(getApiErrorMessage(err, "Unable to cancel this registration."));
     }
   };
 
@@ -69,7 +71,12 @@ export default function MyEventsScreen({ navigation }) {
             <Card style={styles.card}>
               <Card.Title title={event.title} subtitle={event.location} />
               <Card.Content>
-                <Text>{event.date}</Text>
+                <Text style={styles.dateTimeText}>
+                  Date: {formatDisplayDate(event.date)}
+                </Text>
+                <Text style={styles.dateTimeText}>
+                  Time: {formatDisplayTime(event.date)}
+                </Text>
               </Card.Content>
               <Card.Actions>
                 <Button
@@ -96,6 +103,10 @@ const styles = StyleSheet.create({
   },
   card: {
     marginBottom: 12,
+  },
+  dateTimeText: {
+    fontWeight: "600",
+    marginTop: 4,
   },
   empty: {
     marginTop: 30,
