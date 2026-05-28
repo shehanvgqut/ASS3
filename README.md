@@ -8,13 +8,15 @@ Student number: `N11884347`
 
 - Login and account registration
 - Branded splash screen with a minimum 3 second display time
-- Dashboard for joined events
+- Dashboard summary for joined events and events occurring this week
+- Nearby events section that uses native device location to find events in the user's current state
 - Available events list with search
 - Event details with registration, leaving, sharing, and watchlist actions
+- Location check before registration with warnings for out-of-state Australian events and overseas events
 - Watchlist screen for saved events
 - Profile screen with account details and logout
 - Local notifications for event registration and cancellation
-- Offline banner and cached event list fallback
+- Offline banner with cached fallback for available events, joined events, watchlist, event details, and profile
 - Centralized backend error message: `Backend API not working`
 
 ## Tech Stack
@@ -26,6 +28,7 @@ Student number: `N11884347`
 - React Native Paper
 - Axios
 - AsyncStorage
+- Expo Location
 - Expo Notifications
 - Expo Sharing
 
@@ -79,7 +82,7 @@ Key folders:
 - `navigation/`: auth and main app navigation setup
 - `services/`: backend API wrappers
 - `context/`: auth and network state providers
-- `utils/`: date formatting, storage, sharing, notifications, and API error helpers
+- `utils/`: date formatting, centralized offline cache helpers, storage, sharing, notifications, event location risk checks, and API error helpers
 
 ## Setup
 
@@ -87,6 +90,12 @@ Install dependencies:
 
 ```bash
 npm install
+```
+
+If Expo asks for native dependency alignment, install the Expo-managed packages:
+
+```bash
+npx expo install expo-location expo-notifications expo-sharing
 ```
 
 Start the Expo development server:
@@ -116,7 +125,13 @@ npm run web
 ## Notes
 
 - The app requires the backend API to be available for login, registration, events, profile, watchlist, and registrations.
-- Available events are cached locally after a successful load, so the events screen can show saved data if the backend later becomes unavailable.
+- Offline cache keys and cache access functions are centralized in `utils/offlineCache.js`.
+- Available events, dashboard joined events, watchlist events, event details, registered events, and profile details are cached locally after successful loads.
+- If the backend later becomes unavailable, cached read-only data is shown where it exists, alongside the centralized backend error message.
+- Login, registration changes, leaving/cancelling events, watchlist updates, and any uncached data still require the backend API.
+- Nearby events and registration location warnings require foreground location permission on native devices.
+- Location-based features are not supported on web because `services/locationService.js` returns an unsupported platform result for web.
+- Event location checks use event coordinates when available, otherwise they geocode event location text such as `location`, `address`, `venue`, and `city`.
 - Expo Go may have limitations around push notifications; this app uses local notifications for registration feedback.
 - The watchlist implementation expects the `/event-watchlist` endpoints.
 

@@ -4,11 +4,14 @@ import { Button, Card } from "react-native-paper";
 import { useFocusEffect } from "@react-navigation/native";
 
 import { AuthContext } from "../context/AuthContext";
+import { NetworkContext } from "../context/NetworkContext";
 import { logout } from "../services/authService";
 import { getMyProfile } from "../services/userService";
 import ErrorMessage from "../components/ErrorMessage";
 import LoadingView from "../components/LoadingView";
+import OfflineBanner from "../components/OfflineBanner";
 import { getApiErrorMessage } from "../utils/apiErrorMessage";
+import { getCachedProfile, saveCachedProfile } from "../utils/offlineCache";
 
 const formatDate = (date) => {
   if (!date) return "Not available";
@@ -27,6 +30,7 @@ const formatDate = (date) => {
 
 export default function ProfileScreen() {
   const { signOut } = useContext(AuthContext);
+  const { isOnline } = useContext(NetworkContext);
 
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -38,10 +42,24 @@ export default function ProfileScreen() {
       setError("");
 
       const data = await getMyProfile();
-      setProfile(data.user || data);
+      const profileData = data.user || data;
+      setProfile(profileData);
+      await saveCachedProfile(profileData);
     } catch (err) {
-      const message = getApiErrorMessage(err, "Unable to load your profile.");
-      setError(message);
+      const cachedProfile = await getCachedProfile();
+
+      if (cachedProfile) {
+        setProfile(cachedProfile);
+        setError(
+          getApiErrorMessage(
+            err,
+            "Unable to connect to the server. Showing saved profile details."
+          )
+        );
+      } else {
+        const message = getApiErrorMessage(err, "Unable to load your profile.");
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -60,7 +78,9 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.subtitle}>Your account details and session.</Text>
+      <OfflineBanner isOnline={isOnline} />
+
+      <Text style={styles.subtitle}>Your account details.</Text>
 
       {loading ? <LoadingView message="Loading profile..." /> : null}
 

@@ -8,7 +8,13 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "plugins": [
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow IFN666 App to check whether an event is out of state or overseas before registration."
+        }
+      ]
     ],
     "splash": {
       "image": "./assets/splash-icon.png",

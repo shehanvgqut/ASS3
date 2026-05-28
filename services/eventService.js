@@ -20,7 +20,7 @@ export const getEvents = async ({
   dateFrom = "",
   dateTo = "",
   sortBy = "date",
-  sortOrder = "asc",
+  sortOrder = "desc",
   page = 1,
   limit = 8,
 } = {}) => {

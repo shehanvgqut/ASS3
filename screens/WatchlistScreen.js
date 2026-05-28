@@ -1,10 +1,12 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useContext, useState } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import { Button, Card } from "react-native-paper";
 import { useFocusEffect } from "@react-navigation/native";
 
 import ErrorMessage from "../components/ErrorMessage";
 import LoadingView from "../components/LoadingView";
+import OfflineBanner from "../components/OfflineBanner";
+import { NetworkContext } from "../context/NetworkContext";
 import {
   getWatchlist,
   normalizeWatchlistItems,
@@ -12,23 +14,48 @@ import {
 } from "../services/watchlistService";
 import { formatDisplayDate, formatDisplayTime } from "../utils/dateFormatters";
 import { getApiErrorMessage } from "../utils/apiErrorMessage";
+import {
+  saveCachedEventDetails,
+  getCachedWatchlist,
+  saveCachedWatchlist,
+} from "../utils/offlineCache";
 
 const getEvent = (item) => item.event || item;
 const getEventId = (item) => getEvent(item)._id || getEvent(item).id || item._id || item.id;
 
 export default function WatchlistScreen({ navigation }) {
+  const { isOnline } = useContext(NetworkContext);
+
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showingCachedData, setShowingCachedData] = useState(false);
 
   const loadEvents = async () => {
     try {
       setLoading(true);
       setError("");
       const data = await getWatchlist();
-      setEvents(normalizeWatchlistItems(data));
+      const watchlistEvents = normalizeWatchlistItems(data);
+      setEvents(watchlistEvents);
+      setShowingCachedData(false);
+      await saveCachedWatchlist(watchlistEvents);
     } catch (err) {
-      setError(getApiErrorMessage(err, "Unable to load your watchlist."));
+      const cachedWatchlist = await getCachedWatchlist();
+
+      if (cachedWatchlist) {
+        setEvents(cachedWatchlist);
+        setShowingCachedData(true);
+        setError(
+          getApiErrorMessage(
+            err,
+            "Unable to connect to the server. Showing saved watchlist events."
+          )
+        );
+      } else {
+        setShowingCachedData(false);
+        setError(getApiErrorMessage(err, "Unable to load your watchlist."));
+      }
     } finally {
       setLoading(false);
     }
@@ -55,9 +82,11 @@ export default function WatchlistScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <OfflineBanner isOnline={isOnline} />
+
       {error ? <ErrorMessage message={error} onRetry={loadEvents} /> : null}
 
-      {events.length === 0 && !error ? (
+      {events.length === 0 && (!error || showingCachedData) ? (
         <Text style={styles.empty}>Your watchlist is empty.</Text>
       ) : null}
 
@@ -81,13 +110,19 @@ export default function WatchlistScreen({ navigation }) {
               </Card.Content>
               <Card.Actions>
                 <Button
-                  onPress={() =>
-                    navigation.navigate("WatchlistEventDetails", { eventId })
-                  }
+                  onPress={async () => {
+                    await saveCachedEventDetails(event);
+                    navigation.navigate("WatchlistEventDetails", { eventId });
+                  }}
                 >
                   Details
                 </Button>
-                <Button onPress={() => handleRemove(eventId)}>Remove</Button>
+                <Button
+                  disabled={!isOnline}
+                  onPress={() => handleRemove(eventId)}
+                >
+                  Remove
+                </Button>
               </Card.Actions>
             </Card>
           );

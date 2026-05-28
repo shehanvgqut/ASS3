@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { Alert, Text, StyleSheet, ScrollView } from "react-native";
 import { Button, Card } from "react-native-paper";
 
 import { getEventById } from "../services/eventService";
@@ -24,6 +24,69 @@ import {
 } from "../services/notificationService";
 import { formatDisplayDate, formatDisplayTime } from "../utils/dateFormatters";
 import { getApiErrorMessage } from "../utils/apiErrorMessage";
+import {
+  getCurrentDeviceLocationDetails,
+  getEventLocationDetails,
+} from "../services/locationService";
+import { getEventLocationWarning } from "../utils/eventLocationRisk";
+import {
+  getCachedEventDetails,
+  saveCachedEventDetails,
+} from "../utils/offlineCache";
+
+const confirmLocationWarning = (warning) =>
+  new Promise((resolve) => {
+    Alert.alert(warning.title, warning.message, [
+      {
+        text: "Cancel",
+        style: "cancel",
+        onPress: () => resolve(false),
+      },
+      {
+        text: "Register",
+        onPress: () => resolve(true),
+      },
+    ]);
+  });
+
+const confirmLocationUnavailable = () =>
+  new Promise((resolve) => {
+    Alert.alert(
+      "Location check unavailable",
+      "Your device location could not be checked. You can allow location access and try again, or continue registering without the location warning.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+          onPress: () => resolve(false),
+        },
+        {
+          text: "Continue",
+          onPress: () => resolve(true),
+        },
+      ]
+    );
+  });
+
+const confirmRegistrationLocationCheck = async (event) => {
+  try {
+    const deviceLocationDetails = await getCurrentDeviceLocationDetails();
+
+    if (!deviceLocationDetails.permissionGranted) {
+      return confirmLocationUnavailable();
+    }
+
+    const eventAddress = await getEventLocationDetails(event);
+    const locationWarning = getEventLocationWarning(
+      eventAddress,
+      deviceLocationDetails.address
+    );
+
+    return locationWarning ? confirmLocationWarning(locationWarning) : true;
+  } catch (error) {
+    return confirmLocationUnavailable();
+  }
+};
 
 export default function EventDetailsScreen({ route }) {
   const { eventId } = route.params;
@@ -31,7 +94,8 @@ export default function EventDetailsScreen({ route }) {
 
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
+  const [registrationLoading, setRegistrationLoading] = useState(false);
+  const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isRegistered, setIsRegistered] = useState(false);
@@ -40,6 +104,7 @@ export default function EventDetailsScreen({ route }) {
   const selectedEventId = event?._id || event?.id || eventId;
   const eventStatus = event?.status?.toLowerCase();
   const isRegistrationClosed = ["cancelled", "completed"].includes(eventStatus);
+  const isActionLoading = registrationLoading || watchlistLoading;
 
   const loadRegistrationStatus = async () => {
     try {
@@ -73,14 +138,27 @@ export default function EventDetailsScreen({ route }) {
 
       const eventData = await getEventById(eventId);
       setEvent(eventData);
+      await saveCachedEventDetails(eventData);
       await loadRegistrationStatus();
       await loadWatchlistStatus();
     } catch (err) {
-      const message = getApiErrorMessage(
-        err,
-        "Unable to load event details."
-      );
-      setError(message);
+      const cachedEvent = await getCachedEventDetails(eventId);
+
+      if (cachedEvent) {
+        setEvent(cachedEvent);
+        setError(
+          getApiErrorMessage(
+            err,
+            "Unable to connect to the server. Showing saved event details."
+          )
+        );
+      } else {
+        const message = getApiErrorMessage(
+          err,
+          "Unable to load event details."
+        );
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -93,7 +171,7 @@ export default function EventDetailsScreen({ route }) {
     }
 
     try {
-      setActionLoading(true);
+      setWatchlistLoading(true);
       setError("");
       setSuccess("");
 
@@ -107,7 +185,7 @@ export default function EventDetailsScreen({ route }) {
       );
       setError(message);
     } finally {
-      setActionLoading(false);
+      setWatchlistLoading(false);
     }
   };
 
@@ -118,7 +196,7 @@ export default function EventDetailsScreen({ route }) {
     }
 
     try {
-      setActionLoading(true);
+      setWatchlistLoading(true);
       setError("");
       setSuccess("");
 
@@ -132,7 +210,7 @@ export default function EventDetailsScreen({ route }) {
       );
       setError(message);
     } finally {
-      setActionLoading(false);
+      setWatchlistLoading(false);
     }
   };
 
@@ -148,9 +226,15 @@ export default function EventDetailsScreen({ route }) {
     }
 
     try {
-      setActionLoading(true);
+      setRegistrationLoading(true);
       setError("");
       setSuccess("");
+
+      const shouldContinue = await confirmRegistrationLocationCheck(event);
+
+      if (!shouldContinue) {
+        return;
+      }
 
       await registerForEvent(selectedEventId);
       setIsRegistered(true);
@@ -166,7 +250,7 @@ export default function EventDetailsScreen({ route }) {
       );
       setError(message);
     } finally {
-      setActionLoading(false);
+      setRegistrationLoading(false);
     }
   };
 
@@ -177,7 +261,7 @@ export default function EventDetailsScreen({ route }) {
     }
 
     try {
-      setActionLoading(true);
+      setRegistrationLoading(true);
       setError("");
       setSuccess("");
 
@@ -195,7 +279,7 @@ export default function EventDetailsScreen({ route }) {
       );
       setError(message);
     } finally {
-      setActionLoading(false);
+      setRegistrationLoading(false);
     }
   };
 
@@ -247,9 +331,9 @@ export default function EventDetailsScreen({ route }) {
             <Button
               mode={isRegistered ? "outlined" : "contained"}
               onPress={isRegistered ? handleLeave : handleRegister}
-              loading={actionLoading}
+              loading={registrationLoading}
               disabled={
-                actionLoading ||
+                isActionLoading ||
                 !isOnline ||
                 (!isRegistered && isRegistrationClosed)
               }
@@ -273,8 +357,8 @@ export default function EventDetailsScreen({ route }) {
                   ? handleRemoveFromWatchlist
                   : handleAddToWatchlist
               }
-              loading={actionLoading}
-              disabled={actionLoading || !isOnline}
+              loading={watchlistLoading}
+              disabled={isActionLoading || !isOnline}
             >
               {isWatchlisted ? "Remove Saved" : "Save Event"}
             </Button>

@@ -17,6 +17,7 @@ export default function DashboardEventSection({
   events,
   emptyMessage,
   onViewDetails,
+  shareContext = "joined",
 }) {
   return (
     <View style={styles.section}>
@@ -68,7 +69,7 @@ export default function DashboardEventSection({
                   compact
                   event={item}
                   mode="outlined"
-                  shareContext="joined"
+                  shareContext={shareContext}
                 />
               </Card.Actions>
             </Card>

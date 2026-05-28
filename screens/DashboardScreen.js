@@ -5,10 +5,16 @@ import { useFocusEffect } from "@react-navigation/native";
 import DashboardEventSection from "../components/DashboardEventSection";
 import ErrorMessage from "../components/ErrorMessage";
 import LoadingView from "../components/LoadingView";
+import NearbyStateEvents from "../components/NearbyStateEvents";
 import OfflineBanner from "../components/OfflineBanner";
 import { NetworkContext } from "../context/NetworkContext";
 import { getCurrentUserJoinedEvents } from "../services/registrationService";
 import { getApiErrorMessage } from "../utils/apiErrorMessage";
+import {
+  getCachedJoinedEvents,
+  saveCachedEventDetails,
+  saveCachedJoinedEvents,
+} from "../utils/offlineCache";
 
 const filterEventsOccurringThisWeek = (events) => {
   const now = new Date();
@@ -41,6 +47,12 @@ export default function DashboardScreen({ navigation }) {
   const [thisWeekEvents, setThisWeekEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showingCachedData, setShowingCachedData] = useState(false);
+
+  const showJoinedEvents = (joinedEvents) => {
+    setEvents(joinedEvents);
+    setThisWeekEvents(filterEventsOccurringThisWeek(joinedEvents));
+  };
 
   const loadDashboard = async () => {
     try {
@@ -49,17 +61,34 @@ export default function DashboardScreen({ navigation }) {
 
       const joinedEvents = await getCurrentUserJoinedEvents();
 
-      setEvents(joinedEvents);
-      setThisWeekEvents(filterEventsOccurringThisWeek(joinedEvents));
+      showJoinedEvents(joinedEvents);
+      setShowingCachedData(false);
+      await saveCachedJoinedEvents(joinedEvents);
     } catch (err) {
       console.log("Dashboard load error:", err.response?.data || err.message);
-      setError(getApiErrorMessage(err, "Unable to load your dashboard."));
+      const cachedJoinedEvents = await getCachedJoinedEvents();
+
+      if (cachedJoinedEvents) {
+        showJoinedEvents(cachedJoinedEvents);
+        setShowingCachedData(true);
+        setError(
+          getApiErrorMessage(
+            err,
+            "Unable to connect to the server. Showing saved dashboard events."
+          )
+        );
+      } else {
+        setShowingCachedData(false);
+        setError(getApiErrorMessage(err, "Unable to load your dashboard."));
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleViewDetails = (event) => {
+  const handleViewDetails = async (event) => {
+    await saveCachedEventDetails(event);
+
     navigation.navigate("Events", {
       screen: "EventDetails",
       params: {
@@ -69,6 +98,7 @@ export default function DashboardScreen({ navigation }) {
   };
 
   const eventCountLabel = events.length === 1 ? "event" : "events";
+  const shouldShowDashboardSections = !loading && (!error || showingCachedData);
 
   useFocusEffect(
     useCallback(() => {
@@ -107,13 +137,20 @@ export default function DashboardScreen({ navigation }) {
 
       {error ? <ErrorMessage message={error} onRetry={loadDashboard} /> : null}
 
-      {!loading && !error ? (
-        <DashboardEventSection
-          title="My Joined Events"
-          events={events}
-          emptyMessage="You have not joined any events yet."
-          onViewDetails={handleViewDetails}
-        />
+      {shouldShowDashboardSections ? (
+        <>
+          <NearbyStateEvents
+            isOnline={isOnline}
+            onViewDetails={handleViewDetails}
+          />
+
+          <DashboardEventSection
+            title="My Joined Events"
+            events={events}
+            emptyMessage="You have not joined any events yet."
+            onViewDetails={handleViewDetails}
+          />
+        </>
       ) : null}
     </ScrollView>
   );

@@ -14,12 +14,32 @@ import LoadingView from "../components/LoadingView";
 import ErrorMessage from "../components/ErrorMessage";
 import OfflineBanner from "../components/OfflineBanner";
 import EventSearchBar from "../components/EventSearchBar";
-import { getData, saveData } from "../utils/storage";
 import { NetworkContext } from "../context/NetworkContext";
-import { formatDisplayDate, formatDisplayTime } from "../utils/dateFormatters";
+import {
+  formatDisplayDate,
+  formatDisplayTime,
+  parseDateSafely,
+} from "../utils/dateFormatters";
 import { getApiErrorMessage } from "../utils/apiErrorMessage";
+import {
+  getCachedAvailableEvents,
+  saveCachedEventDetails,
+  saveCachedAvailableEvents,
+} from "../utils/offlineCache";
 
 const PAGE_SIZE = 8;
+
+const sortEventsByLatestDate = (eventList) =>
+  [...eventList].sort((firstEvent, secondEvent) => {
+    const firstDate = parseDateSafely(firstEvent?.date);
+    const secondDate = parseDateSafely(secondEvent?.date);
+
+    if (!firstDate && !secondDate) return 0;
+    if (!firstDate) return 1;
+    if (!secondDate) return -1;
+
+    return secondDate - firstDate;
+  });
 
 export default function AvailableEventsScreen({ navigation }) {
   const { isOnline } = useContext(NetworkContext);
@@ -31,6 +51,7 @@ export default function AvailableEventsScreen({ navigation }) {
   const [hasNextPage, setHasNextPage] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [showingCachedData, setShowingCachedData] = useState(false);
 
   const eventsRef = useRef([]);
   const loadingRef = useRef(false);
@@ -71,9 +92,13 @@ export default function AvailableEventsScreen({ navigation }) {
         search,
         page: pageToLoad,
         limit: PAGE_SIZE,
+        sortBy: "date",
+        sortOrder: "desc",
       });
 
-      const eventList = Array.isArray(data) ? data : data.events || [];
+      const eventList = sortEventsByLatestDate(
+        Array.isArray(data) ? data : data.events || []
+      );
       const pagination = data?.pagination;
 
       const currentEvents = append ? eventsRef.current : [];
@@ -97,8 +122,9 @@ export default function AvailableEventsScreen({ navigation }) {
 
       setEvents(mergedEvents);
       setHasNextPage(hasNextPageRef.current);
+      setShowingCachedData(false);
       if (!search) {
-        await saveData("cachedEvents", mergedEvents);
+        await saveCachedAvailableEvents(mergedEvents);
       }
     } catch (err) {
       if (append) {
@@ -108,10 +134,11 @@ export default function AvailableEventsScreen({ navigation }) {
         return;
       }
 
-      const cached = await getData("cachedEvents");
+      const cached = await getCachedAvailableEvents();
       if (cached) {
-        const cachedEvents = search
-          ? cached.filter((event) => {
+        const cachedEvents = sortEventsByLatestDate(
+          search
+            ? cached.filter((event) => {
               const searchableText = [
                 event.title,
                 event.location,
@@ -124,7 +151,8 @@ export default function AvailableEventsScreen({ navigation }) {
 
               return searchableText.includes(search.toLowerCase());
             })
-          : cached;
+            : cached
+        );
 
         eventsRef.current = cachedEvents;
         pageRef.current = 1;
@@ -132,6 +160,7 @@ export default function AvailableEventsScreen({ navigation }) {
 
         setEvents(cachedEvents);
         setHasNextPage(hasNextPageRef.current);
+        setShowingCachedData(true);
         setError(
           getApiErrorMessage(
             err,
@@ -141,6 +170,7 @@ export default function AvailableEventsScreen({ navigation }) {
           )
         );
       } else {
+        setShowingCachedData(false);
         setError(
           getApiErrorMessage(
             err,
@@ -183,7 +213,7 @@ export default function AvailableEventsScreen({ navigation }) {
 
       {error ? <ErrorMessage message={error} onRetry={loadEvents} /> : null}
 
-      {!loading && events.length === 0 && !error ? (
+      {!loading && events.length === 0 && (!error || showingCachedData) ? (
         <Text style={styles.emptyText}>
           {debouncedSearchQuery
             ? "No events match your search."
@@ -224,11 +254,12 @@ export default function AvailableEventsScreen({ navigation }) {
             </Card.Content>
             <Card.Actions>
               <Button
-                onPress={() =>
+                onPress={async () => {
+                  await saveCachedEventDetails(item);
                   navigation.navigate("EventDetails", {
                     eventId: item._id || item.id,
-                  })
-                }
+                  });
+                }}
               >
                 View Details
               </Button>

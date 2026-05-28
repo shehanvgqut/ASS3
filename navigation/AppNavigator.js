@@ -1,6 +1,7 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { StackActions } from "@react-navigation/native";
 
 import DashboardScreen from "../screens/DashboardScreen";
 import AvailableEventsScreen from "../screens/AvailableEventsScreen";
@@ -25,6 +26,17 @@ const screenHeaderOptions = {
   },
   headerTintColor: "#6f43b7",
 };
+
+const popNestedStackToTop = ({ navigation, route }) => ({
+  tabPress: () => {
+    if (route.state?.key) {
+      navigation.dispatch({
+        ...StackActions.popToTop(),
+        target: route.state.key,
+      });
+    }
+  },
+});
 
 function EventsStack() {
   return (
@@ -72,11 +84,12 @@ export default function AppNavigator() {
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: "600",
-          paddingBottom: 4,
+          paddingBottom: 8,
         },
         tabBarStyle: {
           borderTopColor: "#e6e0ec",
-          height: 68,
+          height: 80,
+          paddingBottom: 12,
           paddingTop: 8,
         },
         tabBarIcon: ({ color, focused }) => {
@@ -103,12 +116,14 @@ export default function AppNavigator() {
         name="Events"
         component={EventsStack}
         options={{ headerShown: false }}
+        listeners={popNestedStackToTop}
       />
 
       <Tab.Screen
         name="Watchlist"
         component={WatchlistStack}
         options={{ headerShown: false }}
+        listeners={popNestedStackToTop}
       />
 
       <Tab.Screen name="Profile" component={ProfileScreen} />
